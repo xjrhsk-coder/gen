@@ -1,39 +1,35 @@
-// functions/[path].*js
+// functions/[slug].js
 
 // --- DAFTAR TARGET URL ---
-// KUNCI: adalah slug (misalnya '001')
+// KUNCI: adalah angka (slug) yang diakses di URL (misalnya '001' untuk /001)
 // NILAI: adalah URL tujuan akhir untuk pengalihan.
 const TARGET_MAP = {
-    // URL untuk gen.hurw.xyz/001 (akan berlaku juga untuk /001/apapun)
+    // URL untuk gen.hurw.xyz/001
     '001': 'https://target-url-untuk-001.com/redirect?data=A',
     
-    // URL untuk gen.hurw.xyz/002 (akan berlaku juga untuk /002/apapun)
+    // URL untuk gen.hurw.xyz/002
     '002': 'https://target-url-untuk-002.com/promo?data=B',
 
-    // Tambahkan slug baru di sini:
+    // Tambahkan halaman baru di sini:
     // '003': 'https://target-url-untuk-003.com/new',
 };
 // -------------------------
 
-const DELAY_SECONDS = 3; 
+const DELAY_SECONDS = 3; // Durasi penundaan (detik) sebelum pengalihan otomatis
 const INTERMEDIATE_PAGE_TITLE = 'Loading Your Content...';
 const INTERMEDIATE_PAGE_MESSAGE = 'You will be redirected shortly. If it is not automatic, please click the button below.';
 const BUTTON_TEXT = 'Continue';
 
 export async function onRequest(context) {
-    // 1. Ambil array dari segmen path.
-    // Jika URL adalah /001/uriehja, context.params.path akan berisi ['001', 'uriehja']
-    const pathSegments = Array.isArray(context.params.path) ? context.params.path : [context.params.path];
-    
-    // 2. Gunakan segmen PERTAMA sebagai SLUG utama ('001')
-    const slug = pathSegments[0];
-    
-    // 3. Cari target URL berdasarkan slug utama
+    // 1. Ambil parameter dynamic 'slug' dari URL (misalnya '001')
+    const slug = context.params.slug;
+
+    // 2. Cari target URL berdasarkan slug
     const BASE_TARGET_URL = TARGET_MAP[slug];
 
-    // Penanganan 404 jika slug tidak terdaftar
+    // Penanganan 404 jika slug tidak terdaftar di TARGET_MAP
     if (!BASE_TARGET_URL) {
-        return new Response(`404 Not Found: Target URL for slug '${slug}' is not configured.`, { 
+        return new Response('404 Not Found: Target URL for this page is not configured.', { 
             status: 404,
             headers: { 'Content-Type': 'text/plain' }
         });
@@ -41,13 +37,13 @@ export async function onRequest(context) {
 
     const requestUrl = new URL(context.request.url);
     
-    // 4. Gabungkan parameter query (seperti ?utm=...) dari request ke Target URL
+    // 3. Gabungkan parameter query (seperti ?param=value) dari request ke Target URL
     const targetUrlWithParams = new URL(BASE_TARGET_URL);
     requestUrl.searchParams.forEach((value, key) => {
         targetUrlWithParams.searchParams.append(key, value);
     });
 
-    // 5. Buat halaman HTML
+    // 4. Buat halaman HTML dengan meta refresh ke URL target
     const htmlContent = `
         <!DOCTYPE html>
         <html lang="id">
@@ -57,6 +53,7 @@ export async function onRequest(context) {
           <title>${INTERMEDIATE_PAGE_TITLE} - ${slug}</title>
           <meta http-equiv="refresh" content="${DELAY_SECONDS};url=${targetUrlWithParams.toString()}">
           <style>
+            /* CSS Anda */
             body { font-family: sans-serif; display: flex; flex-direction: column; justify-content: center; align-items: center; min-height: 100vh; margin: 0; background-color: #f0f2f5; color: #333; text-align: center; padding: 20px; box-sizing: border-box; }
             .container { background-color: #fff; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); max-width: 500px; width: 100%; }
             h1 { color: #007bff; margin-bottom: 20px; font-size: 2em; }
@@ -73,13 +70,12 @@ export async function onRequest(context) {
             <h1>${INTERMEDIATE_PAGE_TITLE}</h1>
             <p>${INTERMEDIATE_PAGE_MESSAGE}</p>
             <a href="${targetUrlWithParams.toString()}" class="button">${BUTTON_TEXT}</a>
-            <p style="font-size:0.8em; color:#999; margin-top:20px;">Requested path: ${requestUrl.pathname}</p>
           </div>
         </body>
         </html>
     `;
 
-    // 6. Kirim respon HTML
+    // 5. Kirim respon HTML
     return new Response(htmlContent, {
         headers: { 'Content-Type': 'text/html; charset=utf-8' },
         status: 200
